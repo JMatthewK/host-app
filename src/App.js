@@ -4,6 +4,7 @@ import YouTube from "react-youtube";
 function App() {
   const [currentVideo, setCurrentVideo] = useState(null);
   const [queue, setQueue] = useState([]);
+  const [history, setHistory] = useState([]);
   const api = process.env.REACT_APP_API_URL || 'http://localhost:8000';
   console.log("API URL:", api);
 
@@ -35,20 +36,72 @@ function App() {
     } 
   };
 
+  const fetchHistory = async() => {
+    try {
+      const res = await fetch(`${api}/history/list`);
+      const data = await res.json();
+      console.log("HISTORY RESPONSE:", data);
+      setHistory(data);
+    } catch (err) {
+      console.error("Error fetching history:", err);
+    } 
+  };
+
   useEffect(() => {
     fetchNextVideo();
+    fetchQueue();
+    fetchHistory();
   }, []);
 
   const onEnd = () => {
-    fetchNextVideo();
+    goNext();
+  };
+
+  const goNext = async() => {
+    const res = await fetch(`${api}/queue/next`);
+    const data = await res.json();
+    if (data.video_id) {
+      setCurrentVideo(data.video_id);
+      fetchQueue();
+      fetchHistory();
+    } else {
+      setCurrentVideo(null);
+    }
+  }
+
+  const goPrevious = async() => { 
+    const res = await fetch(`${api}/queue/previous`);
+    const data = await res.json();
+    if (data.video_id) {
+      setCurrentVideo(data.video_id);
+      fetchQueue();
+      fetchHistory();
+    } else {
+      setCurrentVideo(null);
+    }
   };
 
   return (
       <div style={{ background: "#111", color: "#fff", minHeight: "100vh", textAlign: "center" }}>
         <h1>Sing Now - Host Player</h1>
 
+        <div style={{ marginBottom: "20px" }}>
+          <button 
+          onClick={goPrevious}
+          disabled={history.length === 0}
+          style={{ marginRight: "10px" }}>  
+            ⏮ Previous
+          </button>
+          <button 
+          onClick={goNext} 
+          disabled={queue.length === 0}>
+            ⏭ Next
+          </button>
+        </div>
+
         {currentVideo && (
           <YouTube
+            key={currentVideo}
             videoId={currentVideo}
             onEnd={onEnd}
             opts={{
@@ -62,6 +115,13 @@ function App() {
         <h2>Up Next</h2>
         <ul>
           {queue.map((item, idx) => (
+            <li key={idx}>{item.title}</li>
+          ))}
+        </ul>
+
+        <h2>Recently Played</h2>
+        <ul>
+          {history.map((item, idx) => (
             <li key={idx}>{item.title}</li>
           ))}
         </ul>
